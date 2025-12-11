@@ -18,8 +18,8 @@ public typealias SessionUpdateCallback = (inout Session) -> Void
 @MainActor @Observable
 public final class Conversation: @unchecked Sendable {
 	
-	private let client: WebRTCConnector
-	private var task: Task<Void, Error>!
+	private nonisolated(unsafe) let client: WebRTCConnector
+	private nonisolated(unsafe) var task: Task<Void, Error>!
 	private let sessionUpdateCallback: SessionUpdateCallback?
 	private let errorStream: AsyncStream<ServerError>.Continuation
 	
@@ -119,6 +119,7 @@ public final class Conversation: @unchecked Sendable {
 	// MARK: ┣ deinit
 	
 	deinit {
+		task?.cancel()
 		client.disconnect()
 		errorStream.finish()
 	}
@@ -141,6 +142,13 @@ public final class Conversation: @unchecked Sendable {
 			guard case .invalidEphemeralKey = error else { throw error }
 			throw ConversationError.invalidEphemeralKey
 		}
+	}
+	
+	/// Disconnect the WebRTC connection and stop the event processing task.
+    /// Call this method to explicitly end the conversation session.
+	public func disconnect() {
+		task?.cancel()
+		client.disconnect()
 	}
 
 	/// Wait for the connection to be established
